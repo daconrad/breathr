@@ -3,14 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chime Timer</title>
+<title>Breathe</title>
 <style>
   :root {
-    --ink: #2b3530;
-    --paper: #e9ece7;
-    --low: #5a7d6e;
-    --mid: #b8924f;
-    --faint: #c3cac2;
+    --ink: #20302c;
+    --paper: #eaeee9;
+    --mist: #d3dbd4;
+    --inhale: #5b8c7b;   /* deep green */
+    --hold:   #b8924f;   /* amber */
+    --exhale: #6f93b8;   /* slate blue */
+    --faint:  #aeb8b0;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { height: 100%; }
@@ -22,251 +24,371 @@
     align-items: center;
     justify-content: center;
     padding: 24px;
+    overflow: hidden;
   }
-  .app { text-align: center; max-width: 420px; width: 100%; }
+  .app { text-align: center; max-width: 460px; width: 100%; }
+
   h1 {
-    font-size: 1.1rem;
-    font-weight: normal;
-    letter-spacing: 0.35em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .sub {
-    font-size: 0.85rem;
-    color: #6c7a72;
-    margin-bottom: 36px;
-  }
-
-  /* The bell circle */
-  .bell {
-    width: 180px;
-    height: 180px;
-    border-radius: 50%;
-    border: 1.5px solid var(--ink);
-    margin: 0 auto 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    position: relative;
-    transition: box-shadow 0.4s ease;
-  }
-  .bell .count {
-    font-size: 3rem;
-    line-height: 1;
-    font-variant-numeric: tabular-nums;
-  }
-  .bell .of {
-    font-size: 0.75rem;
-    letter-spacing: 0.2em;
-    color: #6c7a72;
-    margin-top: 6px;
-  }
-  /* ripple on chime */
-  .ripple {
-    position: absolute;
-    inset: -1.5px;
-    border-radius: 50%;
-    border: 1.5px solid var(--low);
-    opacity: 0;
-    pointer-events: none;
-  }
-  .ripple.go-low { animation: ripple 1.6s ease-out; border-color: var(--low); }
-  .ripple.go-mid { animation: ripple 1.6s ease-out; border-color: var(--mid); }
-  @keyframes ripple {
-    0%   { transform: scale(1); opacity: 0.8; }
-    100% { transform: scale(1.55); opacity: 0; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ripple.go-low, .ripple.go-mid { animation: none; }
-  }
-
-  .tone-label {
-    height: 1.2em;
-    font-size: 0.85rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
+    font-size: 1rem; font-weight: normal;
+    letter-spacing: 0.4em; text-transform: uppercase;
     margin-bottom: 28px;
-    color: #6c7a72;
   }
-  .tone-label.low { color: var(--low); }
-  .tone-label.mid { color: var(--mid); }
 
-  /* progress dots: 50 cycles as 5 rows of 10 */
-  .dots {
-    display: grid;
-    grid-template-columns: repeat(10, 12px);
-    gap: 8px;
-    justify-content: center;
-    margin-bottom: 36px;
+  /* Exercise picker */
+  .picker {
+    display: flex; gap: 8px; justify-content: center;
+    margin-bottom: 36px; flex-wrap: wrap;
   }
-  .dots span {
-    width: 12px;
-    height: 12px;
+  .picker button {
+    font-family: inherit; font-size: 0.72rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    background: none; color: #5d6b64;
+    border: 1px solid var(--faint); border-radius: 999px;
+    padding: 8px 16px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .picker button:hover { border-color: var(--ink); color: var(--ink); }
+  .picker button.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .picker button:focus-visible { outline: 3px solid var(--hold); outline-offset: 2px; }
+
+  .desc {
+    font-size: 0.85rem; font-style: italic;
+    color: #5d6b64; min-height: 2.4em; margin-bottom: 28px;
+    line-height: 1.5;
+  }
+
+  /* Breathing stage */
+  .stage {
+    position: relative;
+    width: 260px; height: 260px;
+    margin: 0 auto 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .orb {
+    position: absolute;
+    width: 120px; height: 120px;
     border-radius: 50%;
-    border: 1px solid var(--faint);
-    transition: background 0.3s, border-color 0.3s;
+    background: var(--inhale);
+    opacity: 0.18;
+    transform: scale(1);
+    transition: none;
   }
-  .dots span.low { background: var(--low); border-color: var(--low); }
-  .dots span.mid { background: var(--mid); border-color: var(--mid); }
+  .ring {
+    position: absolute;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    border: 1.5px solid var(--inhale);
+    transform: scale(1);
+    transition: none;
+  }
+  .center {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .phase {
+    font-size: 1.2rem; letter-spacing: 0.3em;
+    text-transform: uppercase; color: var(--ink);
+    min-height: 1.4em;
+  }
+  .secs {
+    font-size: 2.6rem; line-height: 1;
+    font-variant-numeric: tabular-nums; margin-top: 6px;
+    color: #5d6b64;
+  }
 
-  button {
-    font-family: inherit;
-    font-size: 0.9rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    background: none;
-    color: var(--ink);
-    border: 1.5px solid var(--ink);
-    border-radius: 999px;
-    padding: 12px 38px;
-    cursor: pointer;
+  .cyclecount {
+    font-size: 0.78rem; letter-spacing: 0.2em;
+    text-transform: uppercase; color: #5d6b64;
+    min-height: 1.2em; margin-bottom: 28px;
+  }
+
+  .controls { display: flex; gap: 12px; justify-content: center; }
+  .controls button {
+    font-family: inherit; font-size: 0.85rem;
+    letter-spacing: 0.25em; text-transform: uppercase;
+    background: none; color: var(--ink);
+    border: 1.5px solid var(--ink); border-radius: 999px;
+    padding: 12px 34px; cursor: pointer;
     transition: background 0.2s, color 0.2s;
   }
-  button:hover { background: var(--ink); color: var(--paper); }
-  button:focus-visible { outline: 3px solid var(--mid); outline-offset: 3px; }
-  .controls { display: flex; gap: 12px; justify-content: center; }
-  .done-msg {
-    margin-top: 20px;
-    font-style: italic;
-    color: #6c7a72;
-    min-height: 1.2em;
+  .controls button:hover { background: var(--ink); color: var(--paper); }
+  .controls button:focus-visible { outline: 3px solid var(--hold); outline-offset: 3px; }
+
+  .sound-row {
+    margin-top: 22px; font-size: 0.75rem;
+    letter-spacing: 0.1em; color: #5d6b64;
+  }
+  .sound-row label { cursor: pointer; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .orb, .ring { transition: none !important; }
   }
 </style>
 </head>
 <body>
 <div class="app">
-  <h1>Chime Timer</h1>
-  <div class="sub">A gentle bell every 5 seconds &middot; 50 cycles</div>
+  <h1>Breathe</h1>
 
-  <div class="bell" id="bell">
-    <div class="ripple" id="ripple"></div>
-    <div class="count" id="count">0</div>
-    <div class="of">of 50</div>
+  <div class="picker" id="picker"></div>
+  <div class="desc" id="desc"></div>
+
+  <div class="stage">
+    <div class="orb" id="orb"></div>
+    <div class="ring" id="ring"></div>
+    <div class="center">
+      <div class="phase" id="phase">Ready</div>
+      <div class="secs" id="secs"></div>
+    </div>
   </div>
 
-  <div class="tone-label" id="toneLabel">&nbsp;</div>
-
-  <div class="dots" id="dots"></div>
+  <div class="cyclecount" id="cyclecount"></div>
 
   <div class="controls">
-    <button id="startBtn">Start</button>
+    <button id="startBtn">Begin</button>
     <button id="resetBtn" style="display:none">Reset</button>
   </div>
-  <div class="done-msg" id="doneMsg"></div>
+
+  <div class="sound-row">
+    <label><input type="checkbox" id="soundToggle" checked> Chime on each phase</label>
+  </div>
 </div>
 
 <script>
 (function () {
-  const TOTAL = 50;
-  const INTERVAL_MS = 5000;
-  const LOW_HZ = 220;   // A3 — low tone
-  const MID_HZ = 440;   // A4 — medium tone
+  // ---- Exercise definitions ----
+  // Each phase: { name, secs, kind }  kind in {inhale, hold, exhale}
+  const EXERCISES = {
+    coherent: {
+      label: 'Coherent 5–5',
+      desc: 'Equal inhale and exhale at about six breaths per minute — the pace linked to heart-rate-variability benefits. A calm daily default.',
+      cycles: 12,
+      phases: [
+        { name: 'Inhale', secs: 5, kind: 'inhale' },
+        { name: 'Exhale', secs: 5, kind: 'exhale' },
+      ],
+    },
+    box: {
+      label: 'Box 4–4–4–4',
+      desc: 'Inhale, hold, exhale, hold — all four counts equal. Used to steady focus and calm under pressure.',
+      cycles: 10,
+      phases: [
+        { name: 'Inhale', secs: 4, kind: 'inhale' },
+        { name: 'Hold',   secs: 4, kind: 'hold' },
+        { name: 'Exhale', secs: 4, kind: 'exhale' },
+        { name: 'Hold',   secs: 4, kind: 'hold' },
+      ],
+    },
+    relax: {
+      label: '4–7–8',
+      desc: 'A short inhale, a long hold, and a slow extended exhale. The long out-breath leans into relaxation — good for winding down or sleep.',
+      cycles: 8,
+      phases: [
+        { name: 'Inhale', secs: 4, kind: 'inhale' },
+        { name: 'Hold',   secs: 7, kind: 'hold' },
+        { name: 'Exhale', secs: 8, kind: 'exhale' },
+      ],
+    },
+  };
 
-  let ctx = null;
-  let timerId = null;
-  let cycle = 0;
+  const COLORS = {
+    inhale: getComputedStyle(document.documentElement).getPropertyValue('--inhale').trim(),
+    hold:   getComputedStyle(document.documentElement).getPropertyValue('--hold').trim(),
+    exhale: getComputedStyle(document.documentElement).getPropertyValue('--exhale').trim(),
+  };
+  // tones per phase kind (Hz)
+  const TONES = { inhale: 294, hold: 392, exhale: 220 };
+
+  // ---- State ----
+  let current = 'coherent';
   let running = false;
+  let ctx = null;
+  let rafId = null;
+  let phaseIdx = 0;
+  let cycle = 0;
+  let phaseStart = 0;       // performance.now() at phase start
+  let lastWhole = -1;       // last whole second shown
 
-  const countEl = document.getElementById('count');
-  const toneLabel = document.getElementById('toneLabel');
-  const dotsEl = document.getElementById('dots');
+  // ---- Elements ----
+  const picker = document.getElementById('picker');
+  const descEl = document.getElementById('desc');
+  const orb = document.getElementById('orb');
+  const ring = document.getElementById('ring');
+  const phaseEl = document.getElementById('phase');
+  const secsEl = document.getElementById('secs');
+  const cycleEl = document.getElementById('cyclecount');
   const startBtn = document.getElementById('startBtn');
   const resetBtn = document.getElementById('resetBtn');
-  const doneMsg = document.getElementById('doneMsg');
-  const ripple = document.getElementById('ripple');
+  const soundToggle = document.getElementById('soundToggle');
 
-  // build 50 dots
-  const dots = [];
-  for (let i = 0; i < TOTAL; i++) {
-    const d = document.createElement('span');
-    dotsEl.appendChild(d);
-    dots.push(d);
+  // Build picker buttons
+  Object.keys(EXERCISES).forEach(key => {
+    const b = document.createElement('button');
+    b.textContent = EXERCISES[key].label;
+    b.dataset.key = key;
+    if (key === current) b.classList.add('active');
+    b.addEventListener('click', () => selectExercise(key));
+    picker.appendChild(b);
+  });
+
+  function selectExercise(key) {
+    if (running) reset();
+    current = key;
+    [...picker.children].forEach(b =>
+      b.classList.toggle('active', b.dataset.key === key));
+    descEl.textContent = EXERCISES[key].desc;
+    resetVisual();
   }
 
-  function playChime(freq) {
-    // Gentle bell: sine fundamental + soft octave partial, slow decay
-    const now = ctx.currentTime;
-    const dur = 2.2;
+  function resetVisual() {
+    phaseEl.textContent = 'Ready';
+    secsEl.textContent = '';
+    cycleEl.textContent = '';
+    setOrb('inhale', 1, 0); // small, no transition
+  }
 
+  // scale the orb/ring. kind picks color; targetScale is final size; durMs is the CSS transition time.
+  function setOrb(kind, targetScale, durMs) {
+    const color = COLORS[kind];
+    const trans = durMs > 0 ? `transform ${durMs}ms linear` : 'none';
+    orb.style.transition = trans;
+    ring.style.transition = trans;
+    orb.style.background = color;
+    ring.style.borderColor = color;
+    // force reflow so a change from 'none' to a transition takes effect cleanly
+    void orb.offsetWidth;
+    orb.style.transform = `scale(${targetScale})`;
+    ring.style.transform = `scale(${targetScale})`;
+  }
+
+  // ---- Audio: gentle bell ----
+  function chime(freq) {
+    if (!ctx || !soundToggle.checked) return;
+    const now = ctx.currentTime;
+    const dur = 1.8;
     const master = ctx.createGain();
     master.gain.setValueAtTime(0.0001, now);
-    master.gain.exponentialRampToValueAtTime(0.25, now + 0.02); // soft attack
-    master.gain.exponentialRampToValueAtTime(0.0001, now + dur); // long fade
+    master.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + dur);
     master.connect(ctx.destination);
 
-    const osc1 = ctx.createOscillator();
-    osc1.type = 'sine';
-    osc1.frequency.value = freq;
-    osc1.connect(master);
-
-    const partialGain = ctx.createGain();
-    partialGain.gain.value = 0.18;
-    partialGain.connect(master);
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.value = freq * 2.76; // bell-like inharmonic partial
-    osc2.connect(partialGain);
-
-    osc1.start(now); osc2.start(now);
-    osc1.stop(now + dur); osc2.stop(now + dur);
+    const o1 = ctx.createOscillator();
+    o1.type = 'sine'; o1.frequency.value = freq; o1.connect(master);
+    const pg = ctx.createGain(); pg.gain.value = 0.16; pg.connect(master);
+    const o2 = ctx.createOscillator();
+    o2.type = 'sine'; o2.frequency.value = freq * 2.76; o2.connect(pg);
+    o1.start(now); o2.start(now);
+    o1.stop(now + dur); o2.stop(now + dur);
   }
 
-  function chimeCycle() {
-    cycle++;
-    const isLow = cycle % 2 === 1; // odd cycles low, even cycles medium
-    playChime(isLow ? LOW_HZ : MID_HZ);
+  // ---- Phase engine ----
+  function beginPhase() {
+    const ex = EXERCISES[current];
+    const phase = ex.phases[phaseIdx];
+    phaseStart = performance.now();
+    lastWhole = -1;
 
-    countEl.textContent = cycle;
-    toneLabel.textContent = isLow ? 'Low tone' : 'Medium tone';
-    toneLabel.className = 'tone-label ' + (isLow ? 'low' : 'mid');
-    dots[cycle - 1].className = isLow ? 'low' : 'mid';
+    phaseEl.textContent = phase.name;
+    phaseEl.style.color = COLORS[phase.kind];
+    chime(TONES[phase.kind]);
 
-    // restart ripple animation
-    ripple.className = 'ripple';
-    void ripple.offsetWidth;
-    ripple.className = 'ripple ' + (isLow ? 'go-low' : 'go-mid');
+    // Drive the orb. Inhale grows, exhale shrinks, hold stays.
+    const SMALL = 1, BIG = 1.9;
+    if (phase.kind === 'inhale') setOrb('inhale', BIG, phase.secs * 1000);
+    else if (phase.kind === 'exhale') setOrb('exhale', SMALL, phase.secs * 1000);
+    else setOrb('hold', currentScale(), 0); // hold: freeze at current size, recolor
+  }
 
-    if (cycle >= TOTAL) {
-      stop();
-      doneMsg.textContent = 'All 50 chimes complete.';
-      startBtn.style.display = 'none';
+  // read the current visual scale from inline style (defaults to 1)
+  function currentScale() {
+    const m = /scale\(([\d.]+)\)/.exec(orb.style.transform);
+    return m ? parseFloat(m[1]) : 1;
+  }
+
+  function tick(nowTs) {
+    if (!running) return;
+    const ex = EXERCISES[current];
+    const phase = ex.phases[phaseIdx];
+    const elapsed = (nowTs - phaseStart) / 1000;
+    const remaining = Math.max(0, phase.secs - elapsed);
+
+    const shown = Math.ceil(remaining);
+    if (shown !== lastWhole) { secsEl.textContent = shown; lastWhole = shown; }
+
+    if (elapsed >= phase.secs) {
+      // advance
+      phaseIdx++;
+      if (phaseIdx >= ex.phases.length) {
+        phaseIdx = 0;
+        cycle++;
+        if (cycle >= ex.cycles) { finish(); return; }
+      }
+      cycleEl.textContent = `Cycle ${cycle + 1} of ${ex.cycles}`;
+      beginPhase();
     }
+    rafId = requestAnimationFrame(tick);
   }
 
   function start() {
     if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
     ctx.resume();
     running = true;
+    phaseIdx = 0; cycle = 0;
     startBtn.textContent = 'Pause';
     resetBtn.style.display = '';
-    doneMsg.textContent = '';
-    chimeCycle(); // first chime immediately
-    if (cycle < TOTAL) timerId = setInterval(chimeCycle, INTERVAL_MS);
+    cycleEl.textContent = `Cycle 1 of ${EXERCISES[current].cycles}`;
+    beginPhase();
+    rafId = requestAnimationFrame(tick);
   }
 
-  function stop() {
+  function pause() {
     running = false;
-    clearInterval(timerId);
-    timerId = null;
-    startBtn.textContent = cycle > 0 && cycle < TOTAL ? 'Resume' : 'Start';
+    cancelAnimationFrame(rafId);
+    startBtn.textContent = 'Resume';
+    // freeze orb where it is
+    setOrb(EXERCISES[current].phases[phaseIdx].kind, currentScale(), 0);
+  }
+
+  function resume() {
+    running = true;
+    startBtn.textContent = 'Pause';
+    // restart the current phase cleanly from its beginning for simplicity
+    beginPhase();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function finish() {
+    running = false;
+    cancelAnimationFrame(rafId);
+    phaseEl.textContent = 'Complete';
+    phaseEl.style.color = COLORS.inhale;
+    secsEl.textContent = '';
+    cycleEl.textContent = `${EXERCISES[current].cycles} cycles done`;
+    setOrb('inhale', 1, 1200);
+    startBtn.textContent = 'Begin';
+    startBtn.dataset.finished = '1';
   }
 
   function reset() {
-    stop();
-    cycle = 0;
-    countEl.textContent = '0';
-    toneLabel.innerHTML = '&nbsp;';
-    toneLabel.className = 'tone-label';
-    doneMsg.textContent = '';
-    dots.forEach(d => d.className = '');
-    startBtn.style.display = '';
-    startBtn.textContent = 'Start';
+    running = false;
+    cancelAnimationFrame(rafId);
+    phaseIdx = 0; cycle = 0;
+    startBtn.textContent = 'Begin';
+    delete startBtn.dataset.finished;
     resetBtn.style.display = 'none';
+    resetVisual();
   }
 
-  startBtn.addEventListener('click', () => running ? stop() : start());
+  startBtn.addEventListener('click', () => {
+    if (startBtn.dataset.finished) { delete startBtn.dataset.finished; start(); return; }
+    if (!running && startBtn.textContent === 'Resume') resume();
+    else if (running) pause();
+    else start();
+  });
   resetBtn.addEventListener('click', reset);
+
+  // init
+  descEl.textContent = EXERCISES[current].desc;
+  resetVisual();
 })();
 </script>
 </body>
