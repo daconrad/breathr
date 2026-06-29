@@ -115,10 +115,25 @@
   .controls button:focus-visible { outline: 3px solid var(--hold); outline-offset: 3px; }
 
   .sound-row {
-    margin-top: 22px; font-size: 0.75rem;
-    letter-spacing: 0.1em; color: #5d6b64;
+    margin-top: 22px;
+    display: flex; justify-content: center;
   }
-  .sound-row label { cursor: pointer; }
+  .sound-btn {
+    width: 44px; height: 44px;
+    display: flex; align-items: center; justify-content: center;
+    background: none; color: #5d6b64;
+    border: 1px solid var(--faint); border-radius: 50%;
+    cursor: pointer; padding: 0;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+  .sound-btn:hover { color: var(--ink); border-color: var(--ink); }
+  .sound-btn:focus-visible { outline: 3px solid var(--hold); outline-offset: 3px; }
+  .sound-btn.off { color: var(--faint); }
+  .sound-btn svg { width: 22px; height: 22px; display: block; }
+  .sound-btn .wave { transition: opacity 0.2s; }
+  .sound-btn.off .wave { opacity: 0; }
+  .sound-btn .slash { opacity: 0; transition: opacity 0.2s; }
+  .sound-btn.off .slash { opacity: 1; }
 
   @media (prefers-reduced-motion: reduce) {
     .orb, .ring { transition: none !important; }
@@ -149,7 +164,14 @@
   </div>
 
   <div class="sound-row">
-    <label><input type="checkbox" id="soundToggle" checked> Chime on each phase</label>
+    <button class="sound-btn" id="soundBtn" aria-pressed="true" aria-label="Mute chime" title="Sound on">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" stroke="none"></path>
+        <path class="wave" d="M16 9a4 4 0 0 1 0 6"></path>
+        <path class="wave" d="M18.5 6.5a8 8 0 0 1 0 11"></path>
+        <line class="slash" x1="3" y1="3" x2="21" y2="21"></line>
+      </svg>
+    </button>
   </div>
 </div>
 
@@ -218,7 +240,16 @@
   const cycleEl = document.getElementById('cyclecount');
   const startBtn = document.getElementById('startBtn');
   const resetBtn = document.getElementById('resetBtn');
-  const soundToggle = document.getElementById('soundToggle');
+  const soundBtn = document.getElementById('soundBtn');
+  let soundOn = true;
+
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    soundBtn.classList.toggle('off', !soundOn);
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+    soundBtn.setAttribute('aria-label', soundOn ? 'Mute chime' : 'Unmute chime');
+    soundBtn.setAttribute('title', soundOn ? 'Sound on' : 'Sound off');
+  });
 
   // Build picker buttons
   Object.keys(EXERCISES).forEach(key => {
@@ -262,7 +293,7 @@
 
   // ---- Audio: gentle bell ----
   function chime(freq) {
-    if (!ctx || !soundToggle.checked) return;
+    if (!ctx || !soundOn) return;
     const now = ctx.currentTime;
     const dur = 1.8;
     const master = ctx.createGain();
